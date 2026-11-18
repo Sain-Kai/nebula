@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nebula | LLM Mechanistic Interpretability & Teardown Studio</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="nebula-app">
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="logo-badge">
+                <span class="nebula-icon">✦</span>
+                <span class="logo-title">NEBULA</span>
+            </div>
+            <span class="subtitle">LLM Mechanistic Interpretability Suite</span>
+            <span class="version-badge">v0.1.0</span>
+        </div>
+        <div class="header-right">
+            <div class="model-meta" id="model-meta-badge">
+                <span class="meta-dot"></span>
+                <span id="model-name-text">Nebula MoE-Transformer (4L / 4H / 4E)</span>
+            </div>
+            <div class="connection-status" id="conn-status">
+                <span class="status-indicator"></span>
+                <span class="status-text">Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="workspace-container">
+        <!-- Control Sidebar -->
+        <aside class="control-panel">
+            <div class="panel-section">
+                <label class="section-label">INPUT PROMPT</label>
+                <textarea id="prompt-input" rows="3" placeholder="Enter prompt to observe internal LLM mechanics...">Why is the sky blue?</textarea>
+            </div>
+
+            <div class="panel-section-grid">
+                <div class="param-group">
+                    <label>Temperature <span id="val-temp" class="param-val">0.70</span></label>
+                    <input type="range" id="param-temp" min="0.0" max="2.0" step="0.05" value="0.70">
+                </div>
+                <div class="param-group">
+                    <label>Top-P <span id="val-topp" class="param-val">0.90</span></label>
+                    <input type="range" id="param-topp" min="0.1" max="1.0" step="0.05" value="0.90">
+                </div>
+                <div class="param-group">
+                    <label>Top-K <span id="val-topk" class="param-val">40</span></label>
+                    <input type="range" id="param-topk" min="1" max="100" step="1" value="40">
+                </div>
+                <div class="param-group">
+                    <label>Max New Tokens <span id="val-maxtok" class="param-val">12</span></label>
+                    <input type="range" id="param-maxtok" min="1" max="32" step="1" value="12">
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="btn-run" class="btn-primary">
+                    <span class="btn-icon">▶</span> Run Inference
+                </button>
+                <button id="btn-stream" class="btn-secondary">
+                    <span class="btn-icon">⚡</span> Stream Step-by-Step
+                </button>
+            </div>
+
+            <!-- Step Scrubber -->
+            <div class="step-scrubber-section" id="scrubber-container">
+                <div class="scrubber-header">
+                    <span>STEP SCRUBBER</span>
+                    <span id="current-step-display" class="step-badge">Step 0 / 0</span>
+                </div>
+                <input type="range" id="step-slider" min="0" max="0" value="0" disabled>
+                <div class="scrubber-controls">
+                    <button id="btn-prev-step" class="btn-sm" disabled>◀ Prev</button>
+                    <button id="btn-play-pause" class="btn-sm" disabled>Play</button>
+                    <button id="btn-next-step" class="btn-sm" disabled>Next ▶</button>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <nav class="nav-tabs">
+                <button class="nav-tab active" data-tab="tab-overview">1. Pipeline Flow</button>
+                <button class="nav-tab" data-tab="tab-tokens">2. Tokenizer Teardown</button>
+                <button class="nav-tab" data-tab="tab-kv">3. KV Cache Dynamics</button>
+                <button class="nav-tab" data-tab="tab-moe">4. MoE Routing Engine</button>
+                <button class="nav-tab" data-tab="tab-attention">5. Attention Heads</button>
+                <button class="nav-tab" data-tab="tab-lens">6. Logit Lens Thoughts</button>
+                <button class="nav-tab" data-tab="tab-neurons">7. Neuron Filters</button>
+                <button class="nav-tab" data-tab="tab-patching">8. Activation Patching</button>
+                <button class="nav-tab" data-tab="tab-prompt-diff">9. Prompt Impact</button>
+            </nav>
+        </aside>
+
+        <!-- Main Display Canvas -->
+        <main class="main-display">
+            <!-- Generated Text Banner -->
+            <div class="output-banner">
+                <div class="banner-title">GENERATED OUTPUT STREAM</div>
+                <div class="tokens-flow-container" id="output-tokens-flow">
+                    <span class="empty-hint">Click Run Inference to begin teardown inspection...</span>
+                </div>
+            </div>
+
+            <!-- TAB 1: PIPELINE OVERVIEW -->
+            <section id="tab-overview" class="tab-pane active">
+                <div class="section-header">
+                    <h2>Transformer Forward Pass Pipeline</h2>
+                    <p>Live visualization of tensor flow from token embedding through attention, MoE routing, residual streams, and final logit projection.</p>
+                </div>
+                <div class="pipeline-visualizer" id="pipeline-graph">
+                    <!-- Dynamic Pipeline Nodes -->
+                </div>
+            </section>
+
+            <!-- TAB 2: TOKENIZER TEARDOWN -->
+            <section id="tab-tokens" class="tab-pane">
+                <div class="section-header">
+                    <h2>Tokenization and Byte Representation</h2>
+                    <p>Inspection of how raw textual prompts are decomposed into tokens, UTF-8 byte arrays, and vector embeddings.</p>
+                </div>
+                <div class="tokens-table-container" id="tokens-breakdown-container">
+                    <div class="empty-hint">Awaiting tokenization...</div>
+                </div>
+            </section>
+
+            <!-- TAB 3: KV CACHE DYNAMICS -->
+            <section id="tab-kv" class="tab-pane">
+                <div class="section-header">
+                    <h2>Key-Value Cache Lifecycle</h2>
+                    <p>Observe the filling of Key and Value cache tensors across prompt prefill and token-by-token autoregressive generation.</p>
+                </div>
+                <div class="kv-grid-container">
+                    <div class="kv-metric-cards" id="kv-metrics">
+                        <!-- Filled by JS -->
+                    </div>
+                    <div class="kv-matrix-view" id="kv-matrix-view">
+                        <!-- Visual representation of memory blocks -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: MOE ROUTING ENGINE -->
+            <section id="tab-moe" class="tab-pane">
+                <div class="section-header">
+                    <h2>Mixture of Experts Routing and Gating</h2>
+                    <p>How router gating logits choose Top-K specialized expert neural networks per token and calculate routing entropy.</p>
+                </div>
+                <div class="moe-view-container" id="moe-view-container">
+                    <!-- Dynamic MoE cards per layer -->
+                </div>
+            </section>
+
+            <!-- TAB 5: ATTENTION HEADS -->
+            <section id="tab-attention" class="tab-pane">
+                <div class="section-header">
+                    <h2>Multi-Head Attention Matrices</h2>
+                    <p>Token-to-token attention weight matrices, head entropy diagnostics, and behavioral classifications.</p>
+                </div>
+                <div class="attention-heads-grid" id="attention-heads-container">
+                    <!-- Dynamic attention head heatmaps -->
+                </div>
+            </section>
+
+            <!-- TAB 6: LOGIT LENS THOUGHTS -->
+            <section id="tab-lens" class="tab-pane">
+                <div class="section-header">
+                    <h2>Logit Lens and Residual Stream Thought Progression</h2>
+                    <p>Unembedding the hidden state at each layer to see what the model is "thinking" and where predictions solidify.</p>
+                </div>
+                <div class="lens-timeline" id="lens-timeline-container">
+                    <!-- Dynamic layer progression cards -->
+                </div>
+            </section>
+
+            <!-- TAB 7: NEURON FILTERS -->
+            <section id="tab-neurons" class="tab-pane">
+                <div class="section-header">
+                    <h2>Neuron Activation Sparsity and Filters</h2>
+                    <p>Teardown of individual feedforward neurons firing, dead neuron counts, and activation distributions.</p>
+                </div>
+                <div class="neuron-explorer" id="neuron-explorer-container">
+                    <!-- Dynamic neuron activity bars -->
+                </div>
+            </section>
+
+            <!-- TAB 8: ACTIVATION PATCHING -->
+            <section id="tab-patching" class="tab-pane">
+                <div class="section-header">
+                    <h2>Counterfactual Activation Patching & Steering Studio</h2>
+                    <p>Intervene inside the transformer mid-inference: inject steering vectors, zero-ablate heads/neurons, and observe the shift in thoughts.</p>
+                </div>
+                <div class="patching-studio">
+                    <div class="patch-form">
+                        <div class="form-row">
+                            <label>Layer to Intervene</label>
+                            <select id="patch-layer">
+                                <option value="0">Layer 0</option>
+                                <option value="1">Layer 1 (MoE)</option>
+                                <option value="2">Layer 2</option>
+                                <option value="3">Layer 3 (MoE)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Target Site</label>
+                            <select id="patch-target">
+                                <option value="post_attn">Post-Attention Stream</option>
+                                <option value="post_ffn">Post-FFN / Expert Stream</option>
+                                <option value="residual_stream">Residual Stream</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Intervention Action</label>
+                            <select id="patch-action">
+                                <option value="scale">Scale Activation (Multiplier)</option>
+                                <option value="zero_ablate">Zero Ablate (Silence)</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Scalar Multiplier</label>
+                            <input type="number" id="patch-multiplier" value="2.0" step="0.5">
+                        </div>
+                        <button id="btn-apply-patch" class="btn-primary">Run Counterfactual Comparison</button>
+                    </div>
+                    <div class="patch-diff-results" id="patch-diff-container">
+                        <div class="empty-hint">Configure an intervention above and click Run Counterfactual Comparison.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 9: PROMPT IMPACT -->
+            <section id="tab-prompt-diff" class="tab-pane">
+                <div class="section-header">
+                    <h2>Prompt Framing & Keyword Sensitivity Analyzer</h2>
+                    <p>Compare how slight variations in phrasing (e.g. adding Chain of Thought or sensitive keywords) redirect internal decision pathways.</p>
+                </div>
+                <div class="prompt-diff-studio">
+                    <div class="prompt-inputs-pair">
+                        <div class="input-card">
+                            <label>Prompt A (Direct)</label>
+                            <textarea id="diff-prompt-a" rows="2">What is the capital of France?</textarea>
+                        </div>
+                        <div class="input-card">
+                            <label>Prompt B (Framed / Chain of Thought)</label>
+                            <textarea id="diff-prompt-b" rows="2">Think carefully step by step: What is the capital of France?</textarea>
+                        </div>
+                    </div>
+                    <button id="btn-compare-prompts" class="btn-primary">Compare Internal Pathways</button>
+                    <div class="prompt-diff-results" id="prompt-diff-container">
+                        <div class="empty-hint">Click Compare Internal Pathways to analyze divergence.</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
