@@ -7,6 +7,8 @@
 #include "nebula/interpretability.hpp"
 #include "nebula/patching.hpp"
 #include "nebula/filters.hpp"
+#include "nebula/backward.hpp"
+#include "nebula/circuit_tracer.hpp"
 
 using namespace nebula;
 
@@ -120,6 +122,50 @@ void test_sampling_filter() {
     std::cout << "✓ test_sampling_filter passed\n";
 }
 
+void test_backward_engine() {
+    ModelConfig cfg;
+    cfg.d_model = 64;
+    cfg.n_layers = 2;
+    cfg.n_heads = 2;
+    cfg.d_ff = 128;
+    NebulaTransformer model(cfg, 42);
+    NebulaTokenizer tok;
+
+    std::vector<int> ids = tok.encode("Backward test");
+    std::vector<std::pair<Tensor, Tensor>> kv;
+    FullTrace trace;
+    model.forward(ids, kv, trace);
+
+    BackwardEngine engine(model);
+    auto res = engine.compute_gradients(ids, 65, trace);
+
+    assert(res.loss > 0.0f);
+    assert(res.layer_gradients.size() == 2);
+    assert(res.gradient_health == "Healthy" || res.gradient_health == "Vanishing" || res.gradient_health == "Exploding");
+    std::cout << "✓ test_backward_engine passed\n";
+}
+
+void test_circuit_tracer() {
+    ModelConfig cfg;
+    cfg.d_model = 64;
+    cfg.n_layers = 2;
+    cfg.n_heads = 2;
+    cfg.d_ff = 128;
+    NebulaTransformer model(cfg, 42);
+    NebulaTokenizer tok;
+
+    std::vector<int> ids = tok.encode("Circuit test");
+    std::vector<std::pair<Tensor, Tensor>> kv;
+    FullTrace trace;
+    model.forward(ids, kv, trace);
+
+    CppCircuitTracer tracer(model);
+    auto dla = tracer.compute_dla(trace, 65);
+
+    assert(dla.head_attributions.size() == 4); // 2 layers * 2 heads
+    std::cout << "✓ test_circuit_tracer passed\n";
+}
+
 int main() {
     std::cout << "Running Nebula C++ Unit Test Suite...\n";
     test_tensor_ops();
@@ -128,6 +174,8 @@ int main() {
     test_interpretability();
     test_patching();
     test_sampling_filter();
+    test_backward_engine();
+    test_circuit_tracer();
     std::cout << "\nAll C++ unit tests passed successfully!\n";
     return 0;
 }

@@ -9,6 +9,8 @@
 #include "nebula/model.hpp"
 #include "nebula/interpretability.hpp"
 #include "nebula/patching.hpp"
+#include "nebula/backward.hpp"
+#include "nebula/circuit_tracer.hpp"
 #include "nebula/http_server.hpp"
 
 using namespace nebula;
@@ -115,6 +117,70 @@ int main(int argc, char** argv) {
     } else if (cmd == "demo") {
         std::string prompt = (argc > 2) ? argv[2] : "Nebula C++ mechanistic interpretability";
         run_demo(prompt);
+    } else if (cmd == "backward") {
+        print_banner();
+        std::string prompt = (argc > 2) ? argv[2] : "Nebula gradient teardown";
+        int target_id = (argc > 3) ? std::stoi(argv[3]) : 65; // 'A'
+
+        ModelConfig cfg;
+        NebulaTokenizer tokenizer;
+        NebulaTransformer model(cfg, 42);
+
+        std::vector<int> input_ids = tokenizer.encode(prompt);
+        std::vector<std::pair<Tensor, Tensor>> kv;
+        FullTrace trace;
+        model.forward(input_ids, kv, trace);
+
+        BackwardEngine eng(model);
+        auto b_res = eng.compute_gradients(input_ids, target_id, trace);
+
+        std::cout << "\033[1;34mBackward Pass & Gradient Flow Diagnostics:\033[0m\n";
+        std::cout << "Target Token ID: " << target_id << " | Cross-Entropy Loss: " << b_res.loss << "\n";
+        std::cout << "Gradient Health: " << b_res.gradient_health << "\n\n";
+
+        std::cout << "┌───────┬─────────┬────────────────────┬──────────────────┬─────────────────┐\n";
+        std::cout << "│ Layer │ Is MoE  │ Residual Grad Norm │ Attn Grad Norm   │ Ratio to Final  │\n";
+        std::cout << "├───────┼─────────┼────────────────────┼──────────────────┼─────────────────┤\n";
+        for (const auto& lg : b_res.layer_gradients) {
+            std::cout << "│ " << std::setw(5) << lg.layer_idx << " │ "
+                      << std::setw(7) << (lg.is_moe ? "True" : "False") << " │ "
+                      << std::setw(18) << std::fixed << std::setprecision(4) << lg.residual_grad_norm << " │ "
+                      << std::setw(16) << lg.attn_grad_norm << " │ "
+                      << std::setw(15) << lg.gradient_ratio_to_final << " │\n";
+        }
+        std::cout << "└───────┴─────────┴────────────────────┴──────────────────┴─────────────────┘\n\n";
+    } else if (cmd == "dla") {
+        print_banner();
+        std::string prompt = (argc > 2) ? argv[2] : "Direct logit attribution";
+        int target_id = (argc > 3) ? std::stoi(argv[3]) : 65;
+
+        ModelConfig cfg;
+        NebulaTokenizer tokenizer;
+        NebulaTransformer model(cfg, 42);
+
+        std::vector<int> input_ids = tokenizer.encode(prompt);
+        std::vector<std::pair<Tensor, Tensor>> kv;
+        FullTrace trace;
+        model.forward(input_ids, kv, trace);
+
+        CppCircuitTracer tracer(model);
+        auto dla = tracer.compute_dla(trace, target_id);
+
+        std::cout << "\033[1;34mDirect Logit Attribution (DLA) Summary:\033[0m\n";
+        std::cout << "Target Token ID: " << target_id << " | Baseline Logit: " << dla.baseline_logit << "\n";
+        std::cout << "Embedding Contribution: " << dla.embedding_contribution << "\n";
+        std::cout << "Total Reconstructed: " << dla.reconstructed_logit << "\n\n";
+
+        std::cout << "┌─────────┬──────────┬────────────────────┬───────────┐\n";
+        std::cout << "│  Layer  │   Head   │ Logit Contribution │ Promoting │\n";
+        std::cout << "├─────────┼──────────┼────────────────────┼───────────┤\n";
+        for (size_t i = 0; i < std::min<size_t>(8, dla.head_attributions.size()); ++i) {
+            const auto& ha = dla.head_attributions[i];
+            std::cout << "│ Layer " << ha.layer_idx << " │ Head " << ha.head_idx << "   │ "
+                      << std::setw(18) << std::fixed << std::setprecision(4) << ha.contribution << " │ "
+                      << std::setw(9) << (ha.is_promoter ? "+ Yes" : "- No") << " │\n";
+        }
+        std::cout << "└─────────┴──────────┴────────────────────┴───────────┘\n\n";
     } else if (cmd == "bench") {
         print_banner();
         std::cout << "Benchmarking C++ Engine across 100 token forward passes...\n";
