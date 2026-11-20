@@ -22,10 +22,16 @@ from nebula.api.schemas import (
     InferenceResponse,
     PromptComparisonRequest,
     ModelInfoResponse,
+    BackwardRequest,
+    DLARequest,
+    ConceptSteerRequest,
 )
 from nebula.api.websocket import handle_websocket_inference
 from nebula.steering.patching import ActivationPatcher, PatchIntervention
 from nebula.steering.prompt_impact import PromptImpactAnalyzer
+from nebula.steering.concept_vectors import ConceptSteeringStudio
+from nebula.core.backward import BackwardPassEngine
+from nebula.interpretability.circuit_tracer import CircuitTracer
 from nebula.interpretability.kv_cache import KVCacheTracker
 from nebula.interpretability.logit_lens import LogitLens
 from nebula.interpretability.attention_analyzer import AttentionAnalyzer
@@ -262,6 +268,120 @@ def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
             label_a=req.label_a,
             label_b=req.label_b,
         )
+
+    @app.post("/api/backward")
+    def backward_endpoint(req: BackwardRequest):
+        input_ids = np.array([tokenizer.encode(req.prompt)])
+        target_tid = req.target_token_id
+        if target_tid is None:
+            # Predict top token if target not provided
+            logits, _, _ = model.forward(input_ids)
+            target_tid = int(np.argmax(logits[0, -1, :]))
+
+        engine = BackwardPassEngine(model, tokenizer=tokenizer)
+        telemetry = engine.compute_loss_and_gradients(input_ids, target_tid)
+        return {
+            "loss": telemetry.loss,
+            "target_token_id": telemetry.target_token_id,
+            "target_token_str": telemetry.target_token_str,
+            "target_prob": telemetry.target_prob,
+            "layer_gradients": [
+                {
+                    "layer_idx": lg.layer_idx,
+                    "is_moe": lg.is_moe,
+                    "residual_grad_norm": lg.residual_grad_norm,
+                    "attn_grad_norm": lg.attn_grad_norm,
+                    "ffn_or_moe_grad_norm": lg.ffn_or_moe_grad_norm,
+                    "weight_grad_norms": lg.weight_grad_norms,
+                    "gradient_ratio_to_final": lg.gradient_ratio_to_final,
+                }
+                for lg in telemetry.layer_gradients
+            ],
+            "embedding_grad_norm": telemetry.embedding_grad_norm,
+            "unembed_grad_norm": telemetry.unembed_grad_norm,
+            "gradient_health": telemetry.gradient_health,
+        }
+
+    @app.post("/api/dla")
+    def dla_endpoint(req: DLARequest):
+        input_ids = np.array([tokenizer.encode(req.prompt)])
+        logits, _, trace = model.forward(input_ids)
+        target_tid = req.target_token_id
+        if target_tid is None:
+            target_tid = int(np.argmax(logits[0, -1, :]))
+
+        tracer = CircuitTracer(model, tokenizer_decoder=tokenizer.decode)
+        dla = tracer.compute_direct_logit_attribution(
+            residual_streams=trace["residual_streams"],
+            layer_traces=trace["layer_traces"],
+            target_token_id=target_tid,
+        )
+        return {
+            "target_token_id": dla.target_token_id,
+            "target_token_str": dla.target_token_str,
+            "baseline_logit": dla.baseline_logit,
+            "embedding_contribution": dla.embedding_contribution,
+            "layer_attributions": [
+                {
+                    "layer_idx": la.layer_idx,
+                    "is_moe": la.is_moe,
+                    "attn_total_contribution": la.attn_total_contribution,
+                    "ffn_or_moe_contribution": la.ffn_or_moe_contribution,
+                    "head_attributions": [
+                        {
+                            "layer_idx": ha.layer_idx,
+                            "head_idx": ha.head_idx,
+                            "direct_logit_contribution": ha.direct_logit_contribution,
+                            "percentage_contribution": ha.percentage_contribution,
+                            "is_positive_promoter": ha.is_positive_promoter,
+                        }
+                        for ha in la.head_attributions
+                    ],
+                }
+                for la in dla.layer_attributions
+            ],
+            "top_promoting_heads": [
+                {
+                    "layer_idx": ha.layer_idx,
+                    "head_idx": ha.head_idx,
+                    "direct_logit_contribution": ha.direct_logit_contribution,
+                    "percentage_contribution": ha.percentage_contribution,
+                }
+                for ha in dla.top_promoting_heads
+            ],
+            "top_suppressing_heads": [
+                {
+                    "layer_idx": ha.layer_idx,
+                    "head_idx": ha.head_idx,
+                    "direct_logit_contribution": ha.direct_logit_contribution,
+                    "percentage_contribution": ha.percentage_contribution,
+                }
+                for ha in dla.top_suppressing_heads
+            ],
+            "reconstructed_logit": dla.reconstructed_logit,
+            "reconstruction_error": dla.reconstruction_error,
+        }
+
+    @app.get("/api/steering/concepts")
+    def list_concepts():
+        studio = ConceptSteeringStudio(model, tokenizer)
+        return [c.to_dict() for c in studio.vector_library.values()]
+
+    @app.post("/api/steering/apply")
+    def apply_steering_endpoint(req: ConceptSteerRequest):
+        studio = ConceptSteeringStudio(model, tokenizer)
+        res = studio.apply_steering(req.prompt, req.concept_name, req.intensity)
+        return {
+            "concept_name": res.concept_name,
+            "target_layer": res.target_layer,
+            "intensity": res.intensity,
+            "baseline_prediction": res.baseline_prediction,
+            "steered_prediction": res.steered_prediction,
+            "concept_alignment_before": res.concept_alignment_before,
+            "concept_alignment_after": res.concept_alignment_after,
+            "prediction_flipped": res.prediction_flipped,
+            "top_diverging_layers": res.top_diverging_layers,
+        }
 
     @app.websocket("/ws/stream")
     async def websocket_stream(websocket: WebSocket):

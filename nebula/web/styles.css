@@ -741,3 +741,48 @@ textarea#prompt-input:focus {
     font-size: 0.85rem;
     font-style: italic;
 }
+
+/* Additional styles for Backward Pass, DLA, and Concept Steering */
+.backward-studio, .dla-studio, .steering-studio {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.grad-layer-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    padding: 12px 16px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.dla-head-pill {
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 4px;
+}
+
+.dla-head-pill.promoter {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid var(--color-emerald);
+    color: var(--color-emerald);
+}
+
+.dla-head-pill.suppressor {
+    background: rgba(244, 63, 94, 0.15);
+    border: 1px solid var(--color-rose);
+    color: var(--color-rose);
+}

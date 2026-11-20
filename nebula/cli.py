@@ -15,6 +15,8 @@ from nebula.core.tokenizer import NebulaTokenizer
 from nebula.core.model import NebulaTransformer
 from nebula.interpretability.logit_lens import LogitLens
 from nebula.interpretability.attention_analyzer import AttentionAnalyzer
+from nebula.interpretability.circuit_tracer import CircuitTracer
+from nebula.core.backward import BackwardPassEngine
 from nebula.api.server import create_app
 
 console = Console()
@@ -101,6 +103,75 @@ def start_server(host: str = "127.0.0.1", port: int = 8765):
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 
+def run_backward(prompt: str = "Explain backpropagation", target_token_id: int = 65):
+    print_banner()
+    console.print(f"\n[bold green]Running analytical backward pass on prompt:[/bold green] [italic]'{prompt}'[/italic]\n")
+
+    cfg = NebulaConfig()
+    tok = NebulaTokenizer()
+    model = NebulaTransformer(cfg.model, seed=42)
+
+    import numpy as np
+    input_ids = np.array([tok.encode(prompt)])
+    engine = BackwardPassEngine(model, tokenizer=tok)
+    telemetry = engine.compute_loss_and_gradients(input_ids, target_token_id)
+
+    b_table = Table(title="Backward Pass Gradient Flow", border_style="dim")
+    b_table.add_column("Layer", justify="right", style="cyan")
+    b_table.add_column("Type", style="bold white")
+    b_table.add_column("Residual Grad Norm", justify="right", style="green")
+    b_table.add_column("Attn Grad Norm", justify="right", style="yellow")
+    b_table.add_column("FFN Grad Norm", justify="right", style="magenta")
+    b_table.add_column("Ratio to Final", justify="right", style="dim")
+
+    for lg in telemetry.layer_gradients:
+        b_table.add_row(
+            f"Layer {lg.layer_idx}",
+            "MoE" if lg.is_moe else "Dense",
+            f"{lg.residual_grad_norm:.4f}",
+            f"{lg.attn_grad_norm:.4f}",
+            f"{lg.ffn_or_moe_grad_norm:.4f}",
+            f"{lg.gradient_ratio_to_final:.4f}",
+        )
+    console.print(b_table)
+    console.print(f"Loss: [bold yellow]{telemetry.loss}[/bold yellow] | Gradient Health: [bold green]{telemetry.gradient_health}[/bold green]\n")
+
+
+def run_dla(prompt: str = "Direct logit attribution", target_token_id: int = 65):
+    print_banner()
+    console.print(f"\n[bold green]Running Direct Logit Attribution on prompt:[/bold green] [italic]'{prompt}'[/italic]\n")
+
+    cfg = NebulaConfig()
+    tok = NebulaTokenizer()
+    model = NebulaTransformer(cfg.model, seed=42)
+
+    import numpy as np
+    input_ids = np.array([tok.encode(prompt)])
+    logits, _, trace = model.forward(input_ids)
+
+    tracer = CircuitTracer(model, tokenizer_decoder=tok.decode)
+    dla = tracer.compute_direct_logit_attribution(
+        residual_streams=trace["residual_streams"],
+        layer_traces=trace["layer_traces"],
+        target_token_id=target_token_id,
+    )
+
+    dla_table = Table(title=f"Direct Logit Attribution for '{dla.target_token_str}'", border_style="dim")
+    dla_table.add_column("Component", style="cyan")
+    dla_table.add_column("Direct Logit Contribution", justify="right", style="yellow")
+    dla_table.add_column("Percentage", justify="right", style="magenta")
+    dla_table.add_column("Effect", style="bold")
+
+    dla_table.add_row("Input Embedding", f"{dla.embedding_contribution:+.4f}", "-", "Baseline")
+    for h in dla.top_promoting_heads[:4]:
+        dla_table.add_row(f"Layer {h.layer_idx} Head {h.head_idx}", f"{h.direct_logit_contribution:+.4f}", f"{h.percentage_contribution:.1f}%", "[green]Promoting[/green]")
+    for h in dla.top_suppressing_heads[:3]:
+        dla_table.add_row(f"Layer {h.layer_idx} Head {h.head_idx}", f"{h.direct_logit_contribution:+.4f}", f"{h.percentage_contribution:.1f}%", "[red]Suppressing[/red]")
+
+    console.print(dla_table)
+    console.print(f"Reconstructed Logit: [bold green]{dla.reconstructed_logit:.4f}[/bold green] | Baseline: [bold yellow]{dla.baseline_logit:.4f}[/bold yellow]\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Nebula: LLM Mechanistic Interpretability Suite")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -114,14 +185,27 @@ def main():
     demo_parser = subparsers.add_parser("demo", help="Run interactive terminal teardown demo")
     demo_parser.add_argument("--prompt", default="Nebula mechanistic interpretability", help="Prompt text")
 
+    # Backward command
+    bw_parser = subparsers.add_parser("backward", help="Run analytical backward pass teardown")
+    bw_parser.add_argument("--prompt", default="Explain backpropagation", help="Prompt text")
+    bw_parser.add_argument("--target", type=int, default=65, help="Target token ID")
+
+    # DLA command
+    dla_parser = subparsers.add_parser("dla", help="Run direct logit attribution decomposition")
+    dla_parser.add_argument("--prompt", default="Direct logit attribution", help="Prompt text")
+    dla_parser.add_argument("--target", type=int, default=65, help="Target token ID")
+
     args = parser.parse_args()
 
     if args.command == "start":
         start_server(host=args.host, port=args.port)
     elif args.command == "demo":
         run_demo(prompt=args.prompt)
+    elif args.command == "backward":
+        run_backward(prompt=args.prompt, target_token_id=args.target)
+    elif args.command == "dla":
+        run_dla(prompt=args.prompt, target_token_id=args.target)
     else:
-        # Default to demo when run without arguments
         run_demo()
 
 

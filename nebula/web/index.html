@@ -94,6 +94,9 @@
                 <button class="nav-tab" data-tab="tab-neurons">7. Neuron Filters</button>
                 <button class="nav-tab" data-tab="tab-patching">8. Activation Patching</button>
                 <button class="nav-tab" data-tab="tab-prompt-diff">9. Prompt Impact</button>
+                <button class="nav-tab" data-tab="tab-backward">10. Backward Pass</button>
+                <button class="nav-tab" data-tab="tab-dla">11. Logit Attribution</button>
+                <button class="nav-tab" data-tab="tab-steering">12. Concept Steering</button>
             </nav>
         </aside>
 
@@ -253,6 +256,63 @@
                     <button id="btn-compare-prompts" class="btn-primary">Compare Internal Pathways</button>
                     <div class="prompt-diff-results" id="prompt-diff-container">
                         <div class="empty-hint">Click Compare Internal Pathways to analyze divergence.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 10: BACKWARD PASS & GRADIENT FLOW -->
+            <section id="tab-backward" class="tab-pane">
+                <div class="section-header">
+                    <h2>Backpropagation & Gradient Flow Teardown</h2>
+                    <p>Observe how loss on the predicted token propagates backwards through unembedding, residual streams, MoE routers, and attention projections.</p>
+                </div>
+                <div class="backward-studio">
+                    <button id="btn-run-backward" class="btn-primary" style="align-self: flex-start;">Compute Analytical Backward Pass</button>
+                    <div id="backward-results-container" class="patch-diff-results">
+                        <div class="empty-hint">Click Compute Analytical Backward Pass to calculate backward gradient flow.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 11: DIRECT LOGIT ATTRIBUTION -->
+            <section id="tab-dla" class="tab-pane">
+                <div class="section-header">
+                    <h2>Direct Logit Attribution (DLA) Circuit Decomposition</h2>
+                    <p>Decomposes the winning token's logit into the additive contributions of the input embedding, each attention head, and each MLP/MoE block.</p>
+                </div>
+                <div class="dla-studio">
+                    <button id="btn-run-dla" class="btn-primary" style="align-self: flex-start;">Compute Direct Logit Attribution</button>
+                    <div id="dla-results-container" class="patch-diff-results">
+                        <div class="empty-hint">Click Compute Direct Logit Attribution to decompose layer and head contributions.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 12: CONCEPT STEERING STUDIO -->
+            <section id="tab-steering" class="tab-pane">
+                <div class="section-header">
+                    <h2>Representation Steering & Concept Injection Studio</h2>
+                    <p>Inject semantic direction vectors directly into the residual stream to steer reasoning, creativity, or precision in real time.</p>
+                </div>
+                <div class="steering-studio">
+                    <div class="patch-form">
+                        <div class="form-row">
+                            <label>Concept Direction</label>
+                            <select id="concept-select">
+                                <option value="Reasoning">Reasoning</option>
+                                <option value="Creativity">Creativity</option>
+                                <option value="Precision">Precision</option>
+                                <option value="Formality">Formality</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <label>Steering Intensity <span id="val-steer-intensity" class="param-val">1.5</span></label>
+                            <input type="range" id="steer-intensity" min="-3.0" max="3.0" step="0.25" value="1.5">
+                        </div>
+                        <button id="btn-apply-steering" class="btn-primary">Apply Steering Vector</button>
+                    </div>
+                    <div id="steering-results-container" class="patch-diff-results">
+                        <div class="empty-hint">Select a concept direction and click Apply Steering Vector to view internal representation shift.</div>
                     </div>
                 </div>
             </section>

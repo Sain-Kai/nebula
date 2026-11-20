@@ -55,6 +55,22 @@ class PromptComparisonRequest(BaseModel):
     label_b: str = "Chain of Thought Prompt"
 
 
+class BackwardRequest(BaseModel):
+    prompt: str = "Why is the sky blue?"
+    target_token_id: Optional[int] = None
+
+
+class DLARequest(BaseModel):
+    prompt: str = "Why is the sky blue?"
+    target_token_id: Optional[int] = None
+
+
+class ConceptSteerRequest(BaseModel):
+    prompt: str = "Why is the sky blue?"
+    concept_name: str = "Reasoning"
+    intensity: float = 1.5
+
+
 class StepFrame(BaseModel):
     step: int
     token_id: int

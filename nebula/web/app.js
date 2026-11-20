@@ -58,6 +58,9 @@ function init() {
     setupScrubberControls();
     setupPatchingStudio();
     setupPromptDiffStudio();
+    setupBackwardStudio();
+    setupDLAStudio();
+    setupSteeringStudio();
     fetchModelInfo();
 }
 
@@ -625,6 +628,152 @@ function renderPromptDiffResults(data) {
         `;
     });
     el.promptDiffContainer.innerHTML = html;
+}
+
+// Backward Studio
+function setupBackwardStudio() {
+    const btn = document.getElementById('btn-run-backward');
+    const container = document.getElementById('backward-results-container');
+    if (!btn || !container) return;
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Computing Gradients...';
+        try {
+            const res = await fetch('/api/backward', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: el.promptInput.value }),
+            });
+            const data = await res.json();
+            let html = `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 12px; font-weight: 700;">
+                    <span>Target Token: <span style="color: #06b6d4;">${data.target_token_str}</span> (ID: ${data.target_token_id})</span>
+                    <span>Loss: <span style="color: #f59e0b;">${data.loss}</span></span>
+                    <span>Status: <span style="color: #10b981;">${data.gradient_health}</span></span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+            `;
+            data.layer_gradients.forEach(lg => {
+                html += `
+                    <div class="grad-layer-card">
+                        <span>Layer ${lg.layer_idx} ${lg.is_moe ? '(MoE)' : '(Dense)'}</span>
+                        <div style="display: flex; gap: 16px; font-family: var(--font-mono); font-size: 0.8rem;">
+                            <span>Residual Norm: ${lg.residual_grad_norm}</span>
+                            <span>Attn Norm: ${lg.attn_grad_norm}</span>
+                            <span>FFN Norm: ${lg.ffn_or_moe_grad_norm}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (e) {
+            alert('Backward error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Compute Analytical Backward Pass';
+        }
+    });
+}
+
+// DLA Studio
+function setupDLAStudio() {
+    const btn = document.getElementById('btn-run-dla');
+    const container = document.getElementById('dla-results-container');
+    if (!btn || !container) return;
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Decomposing Logits...';
+        try {
+            const res = await fetch('/api/dla', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: el.promptInput.value }),
+            });
+            const data = await res.json();
+            let html = `
+                <div style="margin-bottom: 12px; font-weight: 700;">
+                    Target Token: <span style="color: #06b6d4;">${data.target_token_str}</span> | Baseline Logit: ${data.baseline_logit} | Embedding: ${data.embedding_contribution}
+                </div>
+                <h4 style="font-size: 0.85rem; margin-bottom: 8px; color: #10b981;">TOP PROMOTING HEADS</h4>
+                <div style="margin-bottom: 16px;">
+            `;
+            data.top_promoting_heads.forEach(h => {
+                html += `<span class="dla-head-pill promoter">L${h.layer_idx} H${h.head_idx}: +${h.direct_logit_contribution}</span>`;
+            });
+            html += `
+                </div>
+                <h4 style="font-size: 0.85rem; margin-bottom: 8px; color: #f43f5e;">TOP SUPPRESSING HEADS</h4>
+                <div style="margin-bottom: 16px;">
+            `;
+            data.top_suppressing_heads.forEach(h => {
+                html += `<span class="dla-head-pill suppressor">L${h.layer_idx} H${h.head_idx}: ${h.direct_logit_contribution}</span>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        } catch (e) {
+            alert('DLA error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Compute Direct Logit Attribution';
+        }
+    });
+}
+
+// Steering Studio
+function setupSteeringStudio() {
+    const btn = document.getElementById('btn-apply-steering');
+    const slider = document.getElementById('steer-intensity');
+    const sliderVal = document.getElementById('val-steer-intensity');
+    const conceptSel = document.getElementById('concept-select');
+    const container = document.getElementById('steering-results-container');
+    if (!btn || !container) return;
+
+    if (slider && sliderVal) {
+        slider.addEventListener('input', () => { sliderVal.textContent = slider.value; });
+    }
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Steering Representation...';
+        try {
+            const res = await fetch('/api/steering/apply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: el.promptInput.value,
+                    concept_name: conceptSel.value,
+                    intensity: parseFloat(slider.value),
+                }),
+            });
+            const data = await res.json();
+            let html = `
+                <div style="margin-bottom: 12px; font-weight: 700; color: ${data.prediction_flipped ? '#f59e0b' : '#10b981'};">
+                    ${data.prediction_flipped ? '✦ PREDICTION SHIFTED by concept vector injection!' : 'Concept aligned: output remains stable.'}
+                </div>
+                <div class="diff-grid" style="margin-bottom: 16px;">
+                    <div class="diff-col">
+                        <h4>BASELINE PREDICTION</h4>
+                        <div style="font-family: var(--font-mono); font-size: 0.85rem;">${data.baseline_prediction.token_str} (${(data.baseline_prediction.prob * 100).toFixed(1)}%)</div>
+                        <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Alignment: ${data.concept_alignment_before}</div>
+                    </div>
+                    <div class="diff-col">
+                        <h4>STEERED PREDICTION</h4>
+                        <div style="font-family: var(--font-mono); font-size: 0.85rem; color: #06b6d4;">${data.steered_prediction.token_str} (${(data.steered_prediction.prob * 100).toFixed(1)}%)</div>
+                        <div style="font-size: 0.75rem; color: #06b6d4; margin-top: 4px;">Alignment: ${data.concept_alignment_after}</div>
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        } catch (e) {
+            alert('Steering error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Apply Steering Vector';
+        }
+    });
 }
 
 // Start application

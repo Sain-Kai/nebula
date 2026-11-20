@@ -186,6 +186,22 @@ Run an interactive inference teardown directly within your command line:
 nebula demo --prompt "Your prompt goes here"
 ```
 
+### Running Backward Pass Gradient Teardown
+
+Analyze reverse gradient flow and parameter sensitivity across layers:
+
+```bash
+nebula backward --prompt "Your prompt goes here"
+```
+
+### Running Direct Logit Attribution Teardown
+
+Decompose winning logit contributions across attention heads and feedforward blocks:
+
+```bash
+nebula dla --prompt "Your prompt goes here"
+```
+
 ---
 
 ## High-Performance C++ Bare-Metal Engine
@@ -271,6 +287,28 @@ Nebula records every transformation applied to output logits prior to token samp
 - Top-P nucleus filtering
 - Repetition and frequency penalties
 - Custom logit biases
+
+### Backward Pass and Gradient Flow Dynamics
+
+To reveal learning and parameter sensitivity, Nebula computes analytical gradients flowing backward through the transformer:
+- Softmax cross-entropy loss gradients on target tokens.
+- Residual stream gradient propagation tracking attenuation or amplification across depth.
+- Identification of gradient health states categorized into healthy, vanishing, or exploding flow.
+- Measurement of parameter sensitivity across attention projections and expert networks.
+
+### Direct Logit Attribution and Circuit Tracing
+
+Nebula implements Direct Logit Attribution by projecting each individual attention head and feedforward sub-layer directly through the unembedding matrix:
+- Isolates which specific attention heads actively promote candidate tokens versus suppressing alternatives.
+- Quantifies exact percentage contributions to final winning logits.
+- Traces inter-head composition circuits across consecutive attention layers.
+
+### Representation Steering and Concept Injection
+
+Researchers can manipulate internal thought representations mid-inference:
+- Extracts semantic direction vectors using mean activation differences between contrasting prompts.
+- Provides real-time steering vector projection into the residual stream with continuous intensity control.
+- Supports single-neuron impulse injection to study individual neuron causal influence on generated tokens.
 
 ---
 
