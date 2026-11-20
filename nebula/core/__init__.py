@@ -6,6 +6,7 @@ from nebula.core.tokenizer import NebulaTokenizer, TokenMetadata
 from nebula.core.layers import LayerNorm, RMSNorm, MultiHeadAttention, FeedForward
 from nebula.core.moe import MoERouter, MoELayer
 from nebula.core.model import NebulaTransformer, TransformerBlock
+from nebula.core.backward import BackwardPassEngine, BackwardTelemetry, LayerGradients
 
 __all__ = [
     "NebulaTokenizer",
@@ -18,4 +19,7 @@ __all__ = [
     "MoELayer",
     "NebulaTransformer",
     "TransformerBlock",
+    "BackwardPassEngine",
+    "BackwardTelemetry",
+    "LayerGradients",
 ]
