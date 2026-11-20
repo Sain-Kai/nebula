@@ -6,6 +6,12 @@ from nebula.interpretability.kv_cache import KVCacheTracker, CacheSnapshot
 from nebula.interpretability.logit_lens import LogitLens
 from nebula.interpretability.attention_analyzer import AttentionAnalyzer
 from nebula.interpretability.neuron_filter import NeuronFilter
+from nebula.interpretability.circuit_tracer import (
+    CircuitTracer,
+    DLAResult,
+    HeadAttribution,
+    LayerComponentAttribution,
+)
 
 __all__ = [
     "KVCacheTracker",
@@ -13,4 +19,8 @@ __all__ = [
     "LogitLens",
     "AttentionAnalyzer",
     "NeuronFilter",
+    "CircuitTracer",
+    "DLAResult",
+    "HeadAttribution",
+    "LayerComponentAttribution",
 ]
