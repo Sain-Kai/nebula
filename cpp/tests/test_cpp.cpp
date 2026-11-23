@@ -11,6 +11,7 @@
 #include "nebula/circuit_tracer.hpp"
 #include "nebula/sae.hpp"
 #include "nebula/gguf_parser.hpp"
+#include "nebula/speculative.hpp"
 
 using namespace nebula;
 
@@ -195,6 +196,22 @@ void test_cpp_gguf() {
     std::cout << "✓ test_cpp_gguf passed\n";
 }
 
+void test_cpp_speculative() {
+    NebulaTokenizer tok;
+    CppSpeculativeVerifier verifier(4);
+
+    std::vector<int> draft_ids = {78, 101, 98, 117};
+    std::vector<float> draft_probs = {0.9f, 0.85f, 0.8f, 0.75f};
+    std::vector<float> target_probs = {0.95f, 0.90f, 0.85f, 0.80f};
+
+    auto trace = verifier.verify_candidates(draft_ids, draft_probs, target_probs, tok);
+    assert(trace.proposed_tokens == 4);
+    assert(trace.accepted_tokens > 0);
+    assert(trace.speedup_ratio >= 1.0f);
+    assert(!trace.decisions.empty());
+    std::cout << "✓ test_cpp_speculative passed\n";
+}
+
 int main() {
     std::cout << "Running Nebula C++ Unit Test Suite...\n";
     test_tensor_ops();
@@ -207,6 +224,7 @@ int main() {
     test_circuit_tracer();
     test_cpp_sae();
     test_cpp_gguf();
+    test_cpp_speculative();
     std::cout << "\nAll C++ unit tests passed successfully!\n";
     return 0;
 }

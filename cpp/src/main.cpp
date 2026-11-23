@@ -13,6 +13,7 @@
 #include "nebula/circuit_tracer.hpp"
 #include "nebula/sae.hpp"
 #include "nebula/gguf_parser.hpp"
+#include "nebula/speculative.hpp"
 #include "nebula/http_server.hpp"
 
 using namespace nebula;
@@ -224,6 +225,32 @@ int main(int argc, char** argv) {
                       << std::right << std::setw(10) << t.offset << " │\n";
         }
         std::cout << "└────────────────────────────┴──────┴──────────────────┴────────────┘\n\n";
+    } else if (cmd == "speculate") {
+        print_banner();
+        std::cout << "\033[1;34mSpeculative Decoding & Verification Telemetry:\033[0m\n";
+        NebulaTokenizer tok;
+        CppSpeculativeVerifier verifier(4);
+        std::vector<int> draft = {78, 101, 98, 117}; // "N e b u"
+        std::vector<float> q = {0.88f, 0.79f, 0.65f, 0.70f};
+        std::vector<float> p = {0.92f, 0.81f, 0.72f, 0.55f};
+
+        auto spec_res = verifier.verify_candidates(draft, q, p, tok);
+        std::cout << "Draft Candidates: " << spec_res.proposed_tokens
+                  << " | Accepted Tokens: " << spec_res.accepted_tokens
+                  << " | Speedup Multiplier: " << std::fixed << std::setprecision(2) << spec_res.speedup_ratio << "x\n\n";
+
+        std::cout << "┌──────┬──────────┬──────────┬──────────┬────────────┬───────────┐\n";
+        std::cout << "│ Pos  │ Token    │ Draft Q  │ Target P │ Acceptance │ Status    │\n";
+        std::cout << "├──────┼──────────┼──────────┼──────────┼────────────┼───────────┤\n";
+        for (const auto& d : spec_res.decisions) {
+            std::cout << "│ " << std::setw(4) << d.position << " │ "
+                      << std::setw(8) << ("'" + d.draft_token_str + "'") << " │ "
+                      << std::setw(8) << std::fixed << std::setprecision(3) << d.draft_prob << " │ "
+                      << std::setw(8) << d.target_prob << " │ "
+                      << std::setw(10) << d.acceptance_prob << " │ "
+                      << std::setw(9) << (d.is_accepted ? "\033[32mACCEPTED\033[0m" : "\033[31mREJECTED\033[0m") << " │\n";
+        }
+        std::cout << "└──────┴──────────┴──────────┴──────────┴────────────┴───────────┘\n\n";
     } else if (cmd == "bench") {
         print_banner();
         std::cout << "Benchmarking C++ Engine across 100 token forward passes...\n";
@@ -248,6 +275,7 @@ int main(int argc, char** argv) {
                   << "  nebula-cpp demo [prompt]   - Run terminal teardown demo\n"
                   << "  nebula-cpp sae             - Run sparse autoencoder latent decomposition\n"
                   << "  nebula-cpp gguf            - Parse binary GGUF header and tensor tables\n"
+                  << "  nebula-cpp speculate       - Verify speculative decoding draft tokens\n"
                   << "  nebula-cpp start [port]    - Start HTTP visualization server\n"
                   << "  nebula-cpp bench           - Benchmark latency and throughput\n";
     }
