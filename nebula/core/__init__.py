@@ -12,6 +12,12 @@ from nebula.core.speculative import (
     SpeculativeTokenDecision,
     SpeculativeRoundTrace,
 )
+from nebula.core.serialization import (
+    GGUFParser,
+    SafeTensorsParser,
+    TensorDescriptor,
+    SerializedModelSummary,
+)
 
 __all__ = [
     "NebulaTokenizer",
@@ -30,4 +36,8 @@ __all__ = [
     "SpeculativeVerifier",
     "SpeculativeTokenDecision",
     "SpeculativeRoundTrace",
+    "GGUFParser",
+    "SafeTensorsParser",
+    "TensorDescriptor",
+    "SerializedModelSummary",
 ]
