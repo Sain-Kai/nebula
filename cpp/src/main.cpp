@@ -12,6 +12,7 @@
 #include "nebula/backward.hpp"
 #include "nebula/circuit_tracer.hpp"
 #include "nebula/sae.hpp"
+#include "nebula/gguf_parser.hpp"
 #include "nebula/http_server.hpp"
 
 using namespace nebula;
@@ -198,6 +199,31 @@ int main(int argc, char** argv) {
                       << std::setw(12) << std::fixed << std::setprecision(4) << sae_res.active_features[i].activation << " │\n";
         }
         std::cout << "└───────┴────────────────────┴──────────────┘\n\n";
+    } else if (cmd == "gguf") {
+        print_banner();
+        std::cout << "\033[1;34mNative Binary GGUF Header & Tensor Descriptor Inspection:\033[0m\n";
+        auto buf = GGUFParser::create_dummy_gguf("qwen2.5-7b", 4);
+        auto gguf = GGUFParser::parse_buffer(buf);
+        std::cout << "Magic: 0x" << std::hex << gguf.magic << std::dec << " ('GGUF') | Version: " << gguf.version << "\n";
+        std::cout << "Tensors: " << gguf.tensor_count << " | Key-Value Metadata: " << gguf.kv_count << "\n\n";
+        for (const auto& m : gguf.metadata) {
+            std::cout << "• Metadata [" << m.key << "] = " << m.str_value << "\n";
+        }
+        std::cout << "\n┌────────────────────────────┬──────┬──────────────────┬────────────┐\n";
+        std::cout << "│ Tensor Name                │ Dims │ Shape            │ Offset (B) │\n";
+        std::cout << "├────────────────────────────┼──────┼──────────────────┼────────────┤\n";
+        for (const auto& t : gguf.tensors) {
+            std::string shape_str = "[";
+            for (size_t d = 0; d < t.shape.size(); ++d) {
+                shape_str += std::to_string(t.shape[d]) + (d + 1 < t.shape.size() ? "x" : "");
+            }
+            shape_str += "]";
+            std::cout << "│ " << std::left << std::setw(26) << t.name << " │ "
+                      << std::right << std::setw(4) << t.n_dims << " │ "
+                      << std::left << std::setw(16) << shape_str << " │ "
+                      << std::right << std::setw(10) << t.offset << " │\n";
+        }
+        std::cout << "└────────────────────────────┴──────┴──────────────────┴────────────┘\n\n";
     } else if (cmd == "bench") {
         print_banner();
         std::cout << "Benchmarking C++ Engine across 100 token forward passes...\n";
@@ -221,6 +247,7 @@ int main(int argc, char** argv) {
         std::cout << "Usage:\n"
                   << "  nebula-cpp demo [prompt]   - Run terminal teardown demo\n"
                   << "  nebula-cpp sae             - Run sparse autoencoder latent decomposition\n"
+                  << "  nebula-cpp gguf            - Parse binary GGUF header and tensor tables\n"
                   << "  nebula-cpp start [port]    - Start HTTP visualization server\n"
                   << "  nebula-cpp bench           - Benchmark latency and throughput\n";
     }

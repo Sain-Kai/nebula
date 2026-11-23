@@ -10,6 +10,7 @@
 #include "nebula/backward.hpp"
 #include "nebula/circuit_tracer.hpp"
 #include "nebula/sae.hpp"
+#include "nebula/gguf_parser.hpp"
 
 using namespace nebula;
 
@@ -178,6 +179,22 @@ void test_cpp_sae() {
     std::cout << "✓ test_cpp_sae passed\n";
 }
 
+void test_cpp_gguf() {
+    auto buf = GGUFParser::create_dummy_gguf("qwen2", 3);
+    auto header = GGUFParser::parse_buffer(buf);
+
+    assert(header.is_valid);
+    assert(header.version == 3);
+    assert(header.tensor_count == 3);
+    assert(header.metadata.size() == 1);
+    assert(header.metadata[0].key == "general.architecture");
+    assert(header.metadata[0].str_value == "qwen2");
+    assert(header.tensors.size() == 3);
+    assert(header.tensors[0].name == "blk.0.attn_q.weight");
+    assert(header.tensors[0].n_dims == 2);
+    std::cout << "✓ test_cpp_gguf passed\n";
+}
+
 int main() {
     std::cout << "Running Nebula C++ Unit Test Suite...\n";
     test_tensor_ops();
@@ -189,6 +206,7 @@ int main() {
     test_backward_engine();
     test_circuit_tracer();
     test_cpp_sae();
+    test_cpp_gguf();
     std::cout << "\nAll C++ unit tests passed successfully!\n";
     return 0;
 }
