@@ -35,6 +35,12 @@ Nebula is organized into distinct, modular subsystems designed for teardown anal
 - **Counterfactual Activation Patching**: Enables researchers to inject custom steering vectors, scale activations, or zero-ablate specific neurons or attention heads mid-inference to observe counterfactual causal effects.
 - **Prompt Sensitivity Analyzer**: Provides side-by-side comparative analysis of how instructions, chain-of-thought framing, and keyword perturbations redirect internal decision pathways.
 - **Sampling Telemetry and Filters**: Exposes how temperature scaling, top-k truncation, nucleus top-p filtering, and repetition penalties prune candidate tokens before final emission.
+- **Sparse Autoencoders and Monosemantic Dictionary Learning**: Extracts overcomplete monosemantic feature representations from dense polysemantic residual streams.
+- **Cognitive Deliberation and Reasoning Traces**: Monitors entropy fluctuation trajectories, identifying hesitation points and reasoning density.
+- **Speculative Decoding and Parallel Candidate Verification**: Measures rejection sampling acceptance rates and speedup multipliers across draft and target models.
+- **Attention Circuit and Induction Head Detection**: Automates detection of in-context learning circuits across attention heads and builds head-to-head information transfer graphs.
+- **Binary Weight Deserializers**: Includes native C++ and Python parsers for binary GGUF and SafeTensors formats.
+- **Interactive Python SDK and Jupyter Visualizer**: Enables direct in-notebook interactive interpretability inspections.
 
 ---
 
@@ -202,6 +208,30 @@ Decompose winning logit contributions across attention heads and feedforward blo
 nebula dla --prompt "Your prompt goes here"
 ```
 
+### Evaluating Cognitive Deliberation Dynamics
+
+Measure token entropy trajectories and identify cognitive hesitation points during generation:
+
+```bash
+nebula deliberate --prompt "Because reasoning matters"
+```
+
+### Decomposing Activations with Sparse Autoencoders
+
+Extract monosemantic feature dictionary activations from residual layers:
+
+```bash
+nebula sae --prompt "Your prompt goes here" --layer 1 --k 16
+```
+
+### Verifying Speculative Decoding Proposals
+
+Evaluate parallel draft candidate tokens and rejection sampling acceptance rates:
+
+```bash
+nebula speculate --prefix "Your prefix goes here" --gamma 4
+```
+
 ---
 
 ## High-Performance C++ Bare-Metal Engine
@@ -238,6 +268,30 @@ Start the native POSIX server that directly serves the web dashboard:
 ```
 
 Navigate to `http://127.0.0.1:8765` to interact with the full web visualization suite powered by the C++ engine.
+
+### Running C++ Sparse Autoencoder Latent Extraction
+
+Decompose hidden states into monosemantic latents directly via native C++:
+
+```bash
+./bin/nebula-cpp sae
+```
+
+### Inspecting Binary GGUF Model Headers in C++
+
+Read and validate binary GGUF files and tensor tables directly:
+
+```bash
+./bin/nebula-cpp gguf
+```
+
+### Running C++ Speculative Verification
+
+Evaluate draft acceptance ratios and speedup telemetry using the native engine:
+
+```bash
+./bin/nebula-cpp speculate
+```
 
 ---
 
@@ -310,6 +364,22 @@ Researchers can manipulate internal thought representations mid-inference:
 - Provides real-time steering vector projection into the residual stream with continuous intensity control.
 - Supports single-neuron impulse injection to study individual neuron causal influence on generated tokens.
 
+### Sparse Autoencoder Monosemantic Feature Dictionaries
+
+Individual neurons in transformers frequently display polysemanticity, activating for multiple unrelated concepts due to superposition. Nebula incorporates Top-K Sparse Autoencoders to map dense residual vectors to an overcomplete dictionary of features, revealing clean monosemantic concepts with high explained variance.
+
+### Cognitive Deliberation and Thought Trajectories
+
+Large language models alternate between fluent generation and intense deliberation. Nebula measures per-token output entropy and probability distributions to locate hesitation points, compute deliberation token density, and categorize model certainty into high certainty, moderate deliberation, or deep uncertainty.
+
+### Speculative Decoding and Parallel Verification
+
+Autoregressive decoding is traditionally memory-bandwidth bound. Speculative decoding mitigates this by allowing a small draft model to speculate multiple tokens, which the larger target model verifies in parallel in a single forward pass. Nebula visualizes the rejection sampling criteria, accepted token fractions, and theoretical speedup multipliers.
+
+### Induction Head Circuits and In-Context Copying
+
+Induction heads are specialized attention circuits that implement in-context pattern completion. Nebula detects these heads by evaluating attention matrices across repeated token patterns and builds information flow graphs showing how early layers transfer token identities to subsequent copying heads.
+
 ---
 
 ## Programmatic Python API
@@ -347,6 +417,17 @@ patcher.add_intervention(
     PatchIntervention(layer_idx=1, target="post_attn", action="zero_ablate")
 )
 comparison = patcher.run_counterfactual_comparison(model, input_ids)
+
+# Using the Interactive Python SDK
+from nebula import NebulaSession
+
+session = NebulaSession()
+trace = session.inspect("Why is the sky blue?")
+print(trace.summary())
+
+# Decompose activations using Sparse Autoencoders
+sae_result = session.decompose_sae(layer_idx=1, top_k=8)
+print(sae_result.summary())
 ```
 
 ---

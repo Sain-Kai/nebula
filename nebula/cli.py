@@ -172,6 +172,141 @@ def run_dla(prompt: str = "Direct logit attribution", target_token_id: int = 65)
     console.print(f"Reconstructed Logit: [bold green]{dla.reconstructed_logit:.4f}[/bold green] | Baseline: [bold yellow]{dla.baseline_logit:.4f}[/bold yellow]\n")
 
 
+def run_deliberation(prompt: str = "Because reasoning matters", max_tokens: int = 12):
+    print_banner()
+    console.print(f"\n[bold green]Running cognitive deliberation analysis on prompt:[/bold green] [italic]'{prompt}'[/italic]\n")
+    import numpy as np
+    from nebula.cognitive.deliberation import CognitiveEvaluator
+    cfg = NebulaConfig()
+    tok = NebulaTokenizer()
+    model = NebulaTransformer(cfg.model, seed=42)
+
+    input_ids = tok.encode(prompt)
+    curr_ids = list(input_ids)
+    past_kv = None
+    emitted = []
+    logits_hist = []
+    for _ in range(max_tokens):
+        inp = np.array([curr_ids], dtype=np.int64)
+        logits, past_kv, _ = model.forward(inp, past_kv=past_kv)
+        step_logits = logits[0, -1, :]
+        logits_hist.append(step_logits)
+        nxt = int(np.argmax(step_logits))
+        emitted.append(nxt)
+        curr_ids = [nxt]
+        if nxt == tok.EOS_TOKEN_ID:
+            break
+
+    evaluator = CognitiveEvaluator(tok)
+    trace = evaluator.evaluate_generation_trace(emitted, logits_hist)
+
+    delib_table = Table(title="Cognitive Deliberation Dynamics", border_style="dim")
+    delib_table.add_column("Step", justify="right", style="cyan")
+    delib_table.add_column("Emitted Token", style="bold white")
+    delib_table.add_column("Confidence", justify="right", style="green")
+    delib_table.add_column("Entropy", justify="right", style="magenta")
+    delib_table.add_column("Hesitation Point", style="yellow")
+    delib_table.add_column("Top Alternative", style="dim")
+
+    for s in trace.steps:
+        delib_table.add_row(
+            str(s.step_idx + 1),
+            repr(s.token_str),
+            f"{s.probability * 100:.1f}%",
+            f"{s.entropy:.3f}",
+            "[red]Yes (Hesitation)[/red]" if s.is_hesitation_point else "[green]Fluent[/green]",
+            f"{repr(s.top_alternative_token)} ({s.top_alternative_prob * 100:.1f}%)",
+        )
+    console.print(delib_table)
+    console.print(f"Cognitive State: [bold cyan]{trace.cognitive_certainty}[/bold cyan] | Deliberation Ratio: [bold yellow]{trace.deliberation_ratio * 100:.1f}%[/bold yellow] | Mean Entropy: [bold magenta]{trace.mean_entropy:.3f}[/bold magenta]\n")
+
+
+def run_sae(prompt: str = "Sparse Autoencoder", layer_idx: int = 1, k_sparsity: int = 16):
+    print_banner()
+    console.print(f"\n[bold green]Running Sparse Autoencoder decomposition at Layer {layer_idx}:[/bold green]\n")
+    import numpy as np
+    from nebula.interpretability.sae import SparseAutoencoder
+    from nebula.interpretability.feature_catalog import FeatureCatalog
+    cfg = NebulaConfig()
+    tok = NebulaTokenizer()
+    model = NebulaTransformer(cfg.model, seed=42)
+
+    input_ids = tok.encode(prompt)
+    inp = np.array([input_ids], dtype=np.int64)
+    _, _, trace = model.forward(inp)
+
+    res_stream = trace["residual_streams"][layer_idx + 1]
+    x_vec = res_stream[0, -1, :]
+
+    sae = SparseAutoencoder(d_model=model.config.d_model, expansion_factor=4, k_sparsity=k_sparsity, layer_idx=layer_idx)
+    catalog = FeatureCatalog(tok)
+    catalog.auto_tag_sae(sae)
+
+    res = sae.decompose(x_vec, top_n=6)
+
+    sae_table = Table(title=f"Sparse Autoencoder Active Latents (Layer {layer_idx})", border_style="dim")
+    sae_table.add_column("Rank", justify="right", style="cyan")
+    sae_table.add_column("Feature ID", style="bold yellow")
+    sae_table.add_column("Concept Label", style="white")
+    sae_table.add_column("Activation", justify="right", style="green")
+
+    for i, f in enumerate(res.active_features):
+        sae_table.add_row(str(i + 1), f"#{f.feature_idx}", f.semantic_label, f"{f.activation:.4f}")
+    console.print(sae_table)
+    console.print(f"L0 Sparsity: [bold cyan]{res.l0_sparsity}[/bold cyan] | Explained Variance: [bold green]{res.explained_variance * 100:.1f}%[/bold green] | Reconstruction Loss: [bold magenta]{res.reconstruction_loss:.4f}[/bold magenta]\n")
+
+
+def run_speculate(prefix: str = "Speculative decoding", gamma: int = 4):
+    print_banner()
+    console.print(f"\n[bold green]Running speculative verification (gamma={gamma}) on prefix:[/bold green] [italic]'{prefix}'[/italic]\n")
+    import numpy as np
+    from nebula.core.speculative import SpeculativeVerifier
+    cfg = NebulaConfig()
+    tok = NebulaTokenizer()
+    model = NebulaTransformer(cfg.model, seed=42)
+
+    prefix_ids = tok.encode(prefix)
+    curr_ids = list(prefix_ids)
+    draft_ids = []
+    draft_probs = []
+    past_kv = None
+
+    for _ in range(gamma):
+        inp = np.array([curr_ids], dtype=np.int64)
+        logits, past_kv, _ = model.forward(inp, past_kv=past_kv)
+        step_logits = logits[0, -1, :]
+        exp_l = np.exp(step_logits - np.max(step_logits))
+        probs = exp_l / np.sum(exp_l)
+        nxt = int(np.argmax(probs))
+        draft_ids.append(nxt)
+        draft_probs.append(float(probs[nxt]))
+        curr_ids = [nxt]
+
+    verifier = SpeculativeVerifier(model, tok, draft_gamma=gamma)
+    trace = verifier.verify_speculative_candidates(prefix_ids, draft_ids, draft_probs)
+
+    spec_table = Table(title="Speculative Rejection Sampling Telemetry", border_style="dim")
+    spec_table.add_column("Pos", justify="right", style="cyan")
+    spec_table.add_column("Draft Token", style="bold white")
+    spec_table.add_column("Draft Prob (q)", justify="right", style="yellow")
+    spec_table.add_column("Target Prob (p)", justify="right", style="magenta")
+    spec_table.add_column("Acceptance Ratio", justify="right", style="cyan")
+    spec_table.add_column("Verdict", style="bold")
+
+    for d in trace.decisions:
+        verdict = "[green]ACCEPTED[/green]" if d.is_accepted else f"[red]REJECTED[/red] (resampled {repr(d.resampled_token_str)})"
+        spec_table.add_row(
+            str(d.position),
+            repr(d.draft_token_str),
+            f"{d.draft_prob:.3f}",
+            f"{d.target_prob:.3f}",
+            f"{d.acceptance_prob:.3f}",
+            verdict,
+        )
+    console.print(spec_table)
+    console.print(f"Proposed: [bold white]{trace.proposed_tokens}[/bold white] | Accepted: [bold green]{trace.accepted_tokens}[/bold green] | Speedup Ratio: [bold cyan]{trace.speedup_ratio:.2f}x[/bold cyan]\n")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Nebula: LLM Mechanistic Interpretability Suite")
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -195,6 +330,22 @@ def main():
     dla_parser.add_argument("--prompt", default="Direct logit attribution", help="Prompt text")
     dla_parser.add_argument("--target", type=int, default=65, help="Target token ID")
 
+    # Deliberate command
+    delib_parser = subparsers.add_parser("deliberate", help="Evaluate cognitive reasoning and deliberation dynamics")
+    delib_parser.add_argument("--prompt", default="Because reasoning matters", help="Prompt text")
+    delib_parser.add_argument("--max-tokens", type=int, default=12, help="Max tokens to evaluate")
+
+    # SAE command
+    sae_parser = subparsers.add_parser("sae", help="Decompose residual activations with Sparse Autoencoders")
+    sae_parser.add_argument("--prompt", default="Sparse Autoencoder", help="Prompt text")
+    sae_parser.add_argument("--layer", type=int, default=1, help="Layer index")
+    sae_parser.add_argument("--k", type=int, default=16, help="Top-K sparsity constraint")
+
+    # Speculate command
+    spec_parser = subparsers.add_parser("speculate", help="Verify speculative decoding multi-candidate proposals")
+    spec_parser.add_argument("--prefix", default="Speculative decoding", help="Prefix text")
+    spec_parser.add_argument("--gamma", type=int, default=4, help="Draft lookahead tokens")
+
     args = parser.parse_args()
 
     if args.command == "start":
@@ -205,6 +356,12 @@ def main():
         run_backward(prompt=args.prompt, target_token_id=args.target)
     elif args.command == "dla":
         run_dla(prompt=args.prompt, target_token_id=args.target)
+    elif args.command == "deliberate":
+        run_deliberation(prompt=args.prompt, max_tokens=args.max_tokens)
+    elif args.command == "sae":
+        run_sae(prompt=args.prompt, layer_idx=args.layer, k_sparsity=args.k)
+    elif args.command == "speculate":
+        run_speculate(prefix=args.prefix, gamma=args.gamma)
     else:
         run_demo()
 
