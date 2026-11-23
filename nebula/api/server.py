@@ -25,6 +25,8 @@ from nebula.api.schemas import (
     BackwardRequest,
     DLARequest,
     ConceptSteerRequest,
+    DeliberationRequest,
+    DeliberationResponseSchema,
 )
 from nebula.api.websocket import handle_websocket_inference
 from nebula.steering.patching import ActivationPatcher, PatchIntervention
@@ -37,6 +39,7 @@ from nebula.interpretability.logit_lens import LogitLens
 from nebula.interpretability.attention_analyzer import AttentionAnalyzer
 from nebula.interpretability.neuron_filter import NeuronFilter
 from nebula.sampling.filters import LogitFilter
+from nebula.cognitive.deliberation import CognitiveEvaluator
 
 
 def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
@@ -382,6 +385,29 @@ def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
             "prediction_flipped": res.prediction_flipped,
             "top_diverging_layers": res.top_diverging_layers,
         }
+
+    @app.post("/api/deliberation", response_model=DeliberationResponseSchema)
+    def deliberation_endpoint(req: DeliberationRequest):
+        input_ids = tokenizer.encode(req.prompt)
+        past_kv = None
+        emitted_ids = []
+        logits_history = []
+        curr_ids = list(input_ids)
+
+        evaluator = CognitiveEvaluator(tokenizer)
+        for _ in range(req.max_tokens):
+            input_tensor = np.array([curr_ids], dtype=np.int64)
+            logits, past_kv, _ = model.forward(input_tensor, past_kv=past_kv)
+            step_logits = logits[0, -1, :]
+            logits_history.append(step_logits)
+            next_id = int(np.argmax(step_logits))
+            emitted_ids.append(next_id)
+            curr_ids = [next_id]
+            if next_id == tokenizer.EOS_TOKEN_ID:
+                break
+
+        trace = evaluator.evaluate_generation_trace(emitted_ids, logits_history)
+        return trace.to_dict()
 
     @app.websocket("/ws/stream")
     async def websocket_stream(websocket: WebSocket):

@@ -61,6 +61,7 @@ function init() {
     setupBackwardStudio();
     setupDLAStudio();
     setupSteeringStudio();
+    setupDeliberationStudio();
     fetchModelInfo();
 }
 
@@ -772,6 +773,68 @@ function setupSteeringStudio() {
         } finally {
             btn.disabled = false;
             btn.textContent = 'Apply Steering Vector';
+        }
+    });
+}
+
+// Deliberation Studio
+function setupDeliberationStudio() {
+    const btn = document.getElementById('btn-eval-deliberation');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Evaluating Cognition...';
+        try {
+            const res = await fetch('/api/deliberation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: el.promptInput.value,
+                    max_tokens: parseInt(el.paramMaxTok.value) || 16,
+                    temperature: parseFloat(el.paramTemp.value) || 0.7,
+                }),
+            });
+            const data = await res.json();
+
+            document.getElementById('delib-certainty').textContent = data.cognitive_certainty;
+            document.getElementById('delib-density').textContent = (data.deliberation_ratio * 100).toFixed(1) + '%';
+            document.getElementById('delib-entropy').textContent = data.mean_entropy.toFixed(3);
+            document.getElementById('delib-hesitations').textContent = data.hesitation_count;
+
+            const tbody = document.getElementById('deliberation-tbody');
+            if (!tbody) return;
+            if (!data.steps || data.steps.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-hint">No deliberation tokens generated.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            data.steps.forEach(s => {
+                const badge = s.is_hesitation_point
+                    ? '<span class="status-badge" style="background: rgba(244, 63, 94, 0.2); color: #f43f5e;">Hesitation</span>'
+                    : '<span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">Fluent</span>';
+                const typeBadge = s.is_deliberation_token
+                    ? '<span class="status-badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b;">Deliberation</span>'
+                    : '<span style="color: #64748b;">Direct</span>';
+                html += `
+                    <tr>
+                        <td>${s.step_idx + 1}</td>
+                        <td style="font-family: var(--font-mono); font-weight: 600;">'${s.token_str}'</td>
+                        <td>${(s.probability * 100).toFixed(1)}%</td>
+                        <td>${s.entropy.toFixed(3)}</td>
+                        <td>${badge}</td>
+                        <td>${typeBadge}</td>
+                        <td style="font-family: var(--font-mono); font-size: 0.8rem; color: #94a3b8;">'${s.top_alternative}' (${(s.alternative_prob * 100).toFixed(1)}%)</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } catch (e) {
+            alert('Deliberation eval error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Evaluate Cognitive Dynamics';
         }
     });
 }

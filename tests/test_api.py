@@ -57,3 +57,15 @@ def test_api_steering(client):
     data = res_apply.json()
     assert "steered_prediction" in data
     assert "concept_alignment_after" in data
+
+
+def test_api_deliberation(client):
+    res = client.post("/api/deliberation", json={"prompt": "Because reasoning matters", "max_tokens": 8})
+    assert res.status_code == 200
+    data = res.json()
+    assert "total_tokens" in data
+    assert "mean_entropy" in data
+    assert "cognitive_certainty" in data
+    assert "steps" in data
+    assert len(data["steps"]) > 0
+

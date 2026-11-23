@@ -104,3 +104,19 @@ class ModelInfoResponse(BaseModel):
     top_k_experts: int
     moe_layers: List[int]
     activation_fn: str
+
+
+class DeliberationRequest(BaseModel):
+    prompt: str
+    max_tokens: int = 16
+    temperature: float = 0.7
+
+
+class DeliberationResponseSchema(BaseModel):
+    total_tokens: int
+    mean_entropy: float
+    hesitation_count: int
+    deliberation_ratio: float
+    cognitive_certainty: str
+    steps: List[Dict[str, Any]]
+

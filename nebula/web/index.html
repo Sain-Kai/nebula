@@ -97,6 +97,7 @@
                 <button class="nav-tab" data-tab="tab-backward">10. Backward Pass</button>
                 <button class="nav-tab" data-tab="tab-dla">11. Logit Attribution</button>
                 <button class="nav-tab" data-tab="tab-steering">12. Concept Steering</button>
+                <button class="nav-tab" data-tab="tab-deliberation">13. Cognitive Deliberation</button>
             </nav>
         </aside>
 
@@ -313,6 +314,55 @@
                     </div>
                     <div id="steering-results-container" class="patch-diff-results">
                         <div class="empty-hint">Select a concept direction and click Apply Steering Vector to view internal representation shift.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 13: COGNITIVE DELIBERATION & REASONING TRACES -->
+            <section id="tab-deliberation" class="tab-pane">
+                <div class="section-header">
+                    <h2>Cognitive Deliberation & Reasoning Dynamics</h2>
+                    <p>Track token entropy trajectories, hesitation points, and internal deliberation density during generation.</p>
+                </div>
+                <div class="deliberation-studio">
+                    <div class="action-bar" style="margin-bottom: 1rem;">
+                        <button id="btn-eval-deliberation" class="btn-primary">Evaluate Cognitive Dynamics</button>
+                    </div>
+                    <div class="metrics-grid" id="deliberation-metrics" style="margin-bottom: 1.5rem;">
+                        <div class="metric-card">
+                            <div class="metric-title">Cognitive State</div>
+                            <div class="metric-val" id="delib-certainty">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Deliberation Density</div>
+                            <div class="metric-val" id="delib-density">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Mean Entropy</div>
+                            <div class="metric-val" id="delib-entropy">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Hesitation Points</div>
+                            <div class="metric-val" id="delib-hesitations">--</div>
+                        </div>
+                    </div>
+                    <div class="deliberation-table-container">
+                        <table class="data-table" id="deliberation-table">
+                            <thead>
+                                <tr>
+                                    <th>Step</th>
+                                    <th>Token</th>
+                                    <th>Confidence</th>
+                                    <th>Entropy</th>
+                                    <th>Hesitation</th>
+                                    <th>Type</th>
+                                    <th>Top Alternative</th>
+                                </tr>
+                            </thead>
+                            <tbody id="deliberation-tbody">
+                                <tr><td colspan="7" class="empty-hint">Click 'Evaluate Cognitive Dynamics' to compute token deliberation telemetry.</td></tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>
