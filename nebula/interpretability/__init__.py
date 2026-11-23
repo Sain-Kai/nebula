@@ -21,6 +21,11 @@ from nebula.interpretability.feature_catalog import (
     FeatureCatalog,
     FeatureLogitEffect,
 )
+from nebula.interpretability.induction_detector import (
+    InductionHeadDetector,
+    HeadInductionScore,
+    InductionCircuitSummary,
+)
 
 __all__ = [
     "KVCacheTracker",
@@ -37,4 +42,7 @@ __all__ = [
     "SAETeardownResult",
     "FeatureCatalog",
     "FeatureLogitEffect",
+    "InductionHeadDetector",
+    "HeadInductionScore",
+    "InductionCircuitSummary",
 ]
