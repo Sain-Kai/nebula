@@ -27,6 +27,8 @@ from nebula.api.schemas import (
     ConceptSteerRequest,
     DeliberationRequest,
     DeliberationResponseSchema,
+    SAEDecomposeRequest,
+    SAEDecomposeResponse,
 )
 from nebula.api.websocket import handle_websocket_inference
 from nebula.steering.patching import ActivationPatcher, PatchIntervention
@@ -40,6 +42,8 @@ from nebula.interpretability.attention_analyzer import AttentionAnalyzer
 from nebula.interpretability.neuron_filter import NeuronFilter
 from nebula.sampling.filters import LogitFilter
 from nebula.cognitive.deliberation import CognitiveEvaluator
+from nebula.interpretability.sae import SparseAutoencoder
+from nebula.interpretability.feature_catalog import FeatureCatalog
 
 
 def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
@@ -408,6 +412,29 @@ def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
 
         trace = evaluator.evaluate_generation_trace(emitted_ids, logits_history)
         return trace.to_dict()
+
+    @app.post("/api/sae/decompose", response_model=SAEDecomposeResponse)
+    def sae_decompose_endpoint(req: SAEDecomposeRequest):
+        input_ids = tokenizer.encode(req.prompt)
+        input_tensor = np.array([input_ids], dtype=np.int64)
+        _, _, trace = model.forward(input_tensor)
+
+        layer_idx = max(0, min(req.layer_idx, len(trace["layer_traces"]) - 1))
+        res_stream = trace["residual_streams"][layer_idx + 1]
+        x_vec = res_stream[0, -1, :]
+
+        sae = SparseAutoencoder(
+            d_model=model.config.d_model,
+            expansion_factor=req.expansion_factor,
+            k_sparsity=req.k_sparsity,
+            layer_idx=layer_idx,
+            seed=42,
+        )
+        catalog = FeatureCatalog(tokenizer)
+        catalog.auto_tag_sae(sae)
+
+        result = sae.decompose(x_vec, top_n=req.top_features)
+        return result.to_dict()
 
     @app.websocket("/ws/stream")
     async def websocket_stream(websocket: WebSocket):

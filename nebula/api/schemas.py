@@ -120,3 +120,20 @@ class DeliberationResponseSchema(BaseModel):
     cognitive_certainty: str
     steps: List[Dict[str, Any]]
 
+
+class SAEDecomposeRequest(BaseModel):
+    prompt: str
+    layer_idx: int = 1
+    expansion_factor: int = 4
+    k_sparsity: int = 16
+    top_features: int = 8
+
+
+class SAEDecomposeResponse(BaseModel):
+    layer_idx: int
+    l0_sparsity: int
+    reconstruction_loss: float
+    explained_variance: float
+    active_features: List[Dict[str, Any]]
+
+

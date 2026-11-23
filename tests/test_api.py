@@ -69,3 +69,15 @@ def test_api_deliberation(client):
     assert "steps" in data
     assert len(data["steps"]) > 0
 
+
+def test_api_sae(client):
+    res = client.post("/api/sae/decompose", json={"prompt": "Nebula SAE", "layer_idx": 1, "k_sparsity": 8, "top_features": 4})
+    assert res.status_code == 200
+    data = res.json()
+    assert "layer_idx" in data
+    assert "l0_sparsity" in data
+    assert "active_features" in data
+    assert len(data["active_features"]) <= 4
+    assert "reconstruction_loss" in data
+
+

@@ -62,6 +62,7 @@ function init() {
     setupDLAStudio();
     setupSteeringStudio();
     setupDeliberationStudio();
+    setupSAEStudio();
     fetchModelInfo();
 }
 
@@ -835,6 +836,67 @@ function setupDeliberationStudio() {
         } finally {
             btn.disabled = false;
             btn.textContent = 'Evaluate Cognitive Dynamics';
+        }
+    });
+}
+
+// SAE Studio
+function setupSAEStudio() {
+    const btn = document.getElementById('btn-decompose-sae');
+    const layerInput = document.getElementById('sae-layer');
+    const kSlider = document.getElementById('sae-k');
+    const kVal = document.getElementById('val-sae-k');
+    if (!btn) return;
+
+    if (kSlider && kVal) {
+        kSlider.addEventListener('input', () => { kVal.textContent = kSlider.value; });
+    }
+
+    btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        btn.textContent = 'Decomposing Latents...';
+        try {
+            const res = await fetch('/api/sae/decompose', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prompt: el.promptInput.value,
+                    layer_idx: parseInt(layerInput.value) || 1,
+                    k_sparsity: parseInt(kSlider.value) || 16,
+                    top_features: 8,
+                }),
+            });
+            const data = await res.json();
+
+            document.getElementById('sae-out-layer').textContent = 'Layer ' + data.layer_idx;
+            document.getElementById('sae-out-l0').textContent = data.l0_sparsity;
+            document.getElementById('sae-out-var').textContent = (data.explained_variance * 100).toFixed(1) + '%';
+            document.getElementById('sae-out-loss').textContent = data.reconstruction_loss.toFixed(4);
+
+            const tbody = document.getElementById('sae-features-tbody');
+            if (!tbody) return;
+            if (!data.active_features || data.active_features.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-hint">No active features identified.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            data.active_features.forEach(f => {
+                html += `
+                    <tr>
+                        <td style="font-family: var(--font-mono); font-weight: 700; color: #38bdf8;">#${f.feature_idx}</td>
+                        <td style="font-size: 0.85rem;">${f.semantic_label || 'Untagged Feature'}</td>
+                        <td style="font-family: var(--font-mono); font-weight: 600;">${f.activation.toFixed(4)}</td>
+                        <td style="font-family: var(--font-mono); color: #94a3b8;">${f.decoder_norm.toFixed(3)}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        } catch (e) {
+            alert('SAE error: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Decompose Latent Representations';
         }
     });
 }

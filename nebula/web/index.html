@@ -98,6 +98,7 @@
                 <button class="nav-tab" data-tab="tab-dla">11. Logit Attribution</button>
                 <button class="nav-tab" data-tab="tab-steering">12. Concept Steering</button>
                 <button class="nav-tab" data-tab="tab-deliberation">13. Cognitive Deliberation</button>
+                <button class="nav-tab" data-tab="tab-sae">14. Sparse Autoencoders</button>
             </nav>
         </aside>
 
@@ -361,6 +362,60 @@
                             </thead>
                             <tbody id="deliberation-tbody">
                                 <tr><td colspan="7" class="empty-hint">Click 'Evaluate Cognitive Dynamics' to compute token deliberation telemetry.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 14: SPARSE AUTOENCODER MONOSEMANTIC LATENTS -->
+            <section id="tab-sae" class="tab-pane">
+                <div class="section-header">
+                    <h2>Sparse Autoencoders (SAE) Monosemantic Feature Studio</h2>
+                    <p>Deconstruct polysemantic superposition in dense residual activations into discrete, interpretable monosemantic dictionary features.</p>
+                </div>
+                <div class="sae-studio">
+                    <div class="patch-form" style="margin-bottom: 1.5rem;">
+                        <div class="form-row">
+                            <label>Residual Layer Target</label>
+                            <input type="number" id="sae-layer" min="0" max="7" value="1">
+                        </div>
+                        <div class="form-row">
+                            <label>Top-K Sparsity Constraint <span id="val-sae-k" class="param-val">16</span></label>
+                            <input type="range" id="sae-k" min="4" max="64" step="4" value="16">
+                        </div>
+                        <button id="btn-decompose-sae" class="btn-primary">Decompose Latent Representations</button>
+                    </div>
+                    <div class="metrics-grid" id="sae-metrics" style="margin-bottom: 1.5rem;">
+                        <div class="metric-card">
+                            <div class="metric-title">Target Layer</div>
+                            <div class="metric-val" id="sae-out-layer">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Active Latents (L0)</div>
+                            <div class="metric-val" id="sae-out-l0">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Explained Variance</div>
+                            <div class="metric-val" id="sae-out-var">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Reconstruction Loss</div>
+                            <div class="metric-val" id="sae-out-loss">--</div>
+                        </div>
+                    </div>
+                    <div class="deliberation-table-container">
+                        <table class="data-table" id="sae-features-table">
+                            <thead>
+                                <tr>
+                                    <th>Feature ID</th>
+                                    <th>Concept Description</th>
+                                    <th>Activation</th>
+                                    <th>Decoder Norm</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sae-features-tbody">
+                                <tr><td colspan="4" class="empty-hint">Click 'Decompose Latent Representations' to extract monosemantic dictionary features.</td></tr>
                             </tbody>
                         </table>
                     </div>
