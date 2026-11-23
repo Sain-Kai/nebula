@@ -10,5 +10,6 @@ __version__ = "0.1.0"
 __author__ = "Sain-Kai"
 
 from nebula.config import NebulaConfig
+from nebula.sdk import NebulaSession, teardown
 
-__all__ = ["NebulaConfig", "__version__"]
+__all__ = ["NebulaConfig", "NebulaSession", "teardown", "__version__"]
