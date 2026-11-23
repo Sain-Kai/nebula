@@ -12,6 +12,11 @@ from nebula.interpretability.circuit_tracer import (
     HeadAttribution,
     LayerComponentAttribution,
 )
+from nebula.interpretability.sae import (
+    SparseAutoencoder,
+    ActiveFeature,
+    SAETeardownResult,
+)
 
 __all__ = [
     "KVCacheTracker",
@@ -23,4 +28,7 @@ __all__ = [
     "DLAResult",
     "HeadAttribution",
     "LayerComponentAttribution",
+    "SparseAutoencoder",
+    "ActiveFeature",
+    "SAETeardownResult",
 ]
