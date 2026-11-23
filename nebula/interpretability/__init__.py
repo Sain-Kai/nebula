@@ -17,6 +17,10 @@ from nebula.interpretability.sae import (
     ActiveFeature,
     SAETeardownResult,
 )
+from nebula.interpretability.feature_catalog import (
+    FeatureCatalog,
+    FeatureLogitEffect,
+)
 
 __all__ = [
     "KVCacheTracker",
@@ -31,4 +35,6 @@ __all__ = [
     "SparseAutoencoder",
     "ActiveFeature",
     "SAETeardownResult",
+    "FeatureCatalog",
+    "FeatureLogitEffect",
 ]
