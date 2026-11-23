@@ -11,6 +11,7 @@
 #include "nebula/patching.hpp"
 #include "nebula/backward.hpp"
 #include "nebula/circuit_tracer.hpp"
+#include "nebula/sae.hpp"
 #include "nebula/http_server.hpp"
 
 using namespace nebula;
@@ -181,6 +182,22 @@ int main(int argc, char** argv) {
                       << std::setw(9) << (ha.is_promoter ? "+ Yes" : "- No") << " │\n";
         }
         std::cout << "└─────────┴──────────┴────────────────────┴───────────┘\n\n";
+    } else if (cmd == "sae") {
+        print_banner();
+        std::cout << "\033[1;34mSparse Autoencoder Latent Decomposition Demo:\033[0m\n";
+        CppSparseAutoencoder sae(128, 4, 16, 42);
+        Tensor x({1, 1, 128}, 0.35f);
+        auto sae_res = sae.decompose(x, 8);
+        std::cout << "Input Dimension: 128 | Dictionary Expansion: 4x (512 Features) | Top-K Sparsity: " << sae_res.l0_sparsity << "\n";
+        std::cout << "Reconstruction MSE: " << std::fixed << std::setprecision(6) << sae_res.reconstruction_mse << "\n\n";
+        std::cout << "┌───────┬────────────────────┬──────────────┐\n";
+        std::cout << "│ Rank  │ Feature Dictionary │ Activation   │\n";
+        std::cout << "├───────┼────────────────────┼──────────────┤\n";
+        for (size_t i = 0; i < sae_res.active_features.size(); ++i) {
+            std::cout << "│ " << std::setw(5) << (i + 1) << " │ Feature " << std::setw(8) << sae_res.active_features[i].feature_idx << " │ "
+                      << std::setw(12) << std::fixed << std::setprecision(4) << sae_res.active_features[i].activation << " │\n";
+        }
+        std::cout << "└───────┴────────────────────┴──────────────┘\n\n";
     } else if (cmd == "bench") {
         print_banner();
         std::cout << "Benchmarking C++ Engine across 100 token forward passes...\n";
@@ -203,8 +220,9 @@ int main(int argc, char** argv) {
     } else {
         std::cout << "Usage:\n"
                   << "  nebula-cpp demo [prompt]   - Run terminal teardown demo\n"
-                  << "  nebula-cpp start [port]     - Start HTTP visualization server\n"
-                  << "  nebula-cpp bench            - Benchmark latency and throughput\n";
+                  << "  nebula-cpp sae             - Run sparse autoencoder latent decomposition\n"
+                  << "  nebula-cpp start [port]    - Start HTTP visualization server\n"
+                  << "  nebula-cpp bench           - Benchmark latency and throughput\n";
     }
     return 0;
 }

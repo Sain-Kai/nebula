@@ -9,6 +9,7 @@
 #include "nebula/filters.hpp"
 #include "nebula/backward.hpp"
 #include "nebula/circuit_tracer.hpp"
+#include "nebula/sae.hpp"
 
 using namespace nebula;
 
@@ -166,6 +167,17 @@ void test_circuit_tracer() {
     std::cout << "✓ test_circuit_tracer passed\n";
 }
 
+void test_cpp_sae() {
+    CppSparseAutoencoder sae(64, 4, 8, 42);
+    Tensor x({1, 1, 64}, 0.5f);
+    auto res = sae.decompose(x, 4);
+
+    assert(res.l0_sparsity <= 8);
+    assert(res.reconstruction_mse >= 0.0f);
+    assert(res.active_features.size() <= 4);
+    std::cout << "✓ test_cpp_sae passed\n";
+}
+
 int main() {
     std::cout << "Running Nebula C++ Unit Test Suite...\n";
     test_tensor_ops();
@@ -176,6 +188,7 @@ int main() {
     test_sampling_filter();
     test_backward_engine();
     test_circuit_tracer();
+    test_cpp_sae();
     std::cout << "\nAll C++ unit tests passed successfully!\n";
     return 0;
 }
