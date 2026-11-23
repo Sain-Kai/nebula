@@ -81,3 +81,25 @@ def test_api_sae(client):
     assert "reconstruction_loss" in data
 
 
+def test_api_speculative_verification(client):
+    res = client.post("/api/speculative/verify", json={"prefix": "Testing speculative", "draft_gamma": 3})
+    assert res.status_code == 200
+    data = res.json()
+    assert "proposed_tokens" in data
+    assert data["proposed_tokens"] == 3
+    assert "accepted_tokens" in data
+    assert "speedup_ratio" in data
+    assert len(data["decisions"]) > 0
+
+
+def test_api_induction_circuits(client):
+    res = client.post("/api/circuits/induction", json={"seq_len": 16})
+    assert res.status_code == 200
+    data = res.json()
+    assert "total_heads" in data
+    assert "induction_heads" in data
+    assert "top_induction_heads" in data
+    assert len(data["top_induction_heads"]) > 0
+
+
+

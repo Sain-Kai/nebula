@@ -63,6 +63,7 @@ function init() {
     setupSteeringStudio();
     setupDeliberationStudio();
     setupSAEStudio();
+    setupSpecCircuitStudio();
     fetchModelInfo();
 }
 
@@ -899,6 +900,94 @@ function setupSAEStudio() {
             btn.textContent = 'Decompose Latent Representations';
         }
     });
+}
+
+// Speculative & Induction Circuits Studio
+function setupSpecCircuitStudio() {
+    const btnSpec = document.getElementById('btn-run-speculative');
+    const btnCirc = document.getElementById('btn-run-circuits');
+    const gammaSlider = document.getElementById('spec-gamma');
+    const gammaVal = document.getElementById('val-spec-gamma');
+    const specContainer = document.getElementById('speculative-decisions-container');
+    const circContainer = document.getElementById('circuits-summary-container');
+
+    if (gammaSlider && gammaVal) {
+        gammaSlider.addEventListener('input', () => { gammaVal.textContent = gammaSlider.value; });
+    }
+
+    if (btnSpec && specContainer) {
+        btnSpec.addEventListener('click', async () => {
+            btnSpec.disabled = true;
+            btnSpec.textContent = 'Verifying Draft...';
+            try {
+                const res = await fetch('/api/speculative/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prefix: el.promptInput.value,
+                        draft_gamma: parseInt(gammaSlider.value) || 4,
+                    }),
+                });
+                const data = await res.json();
+
+                document.getElementById('spec-out-proposed').textContent = data.proposed_tokens;
+                document.getElementById('spec-out-accepted').textContent = data.accepted_tokens;
+                document.getElementById('spec-out-speedup').textContent = data.speedup_ratio.toFixed(2) + 'x';
+
+                let html = '';
+                data.decisions.forEach(d => {
+                    const statusTag = d.is_accepted
+                        ? '<span class="status-badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981;">ACCEPTED</span>'
+                        : '<span class="status-badge" style="background: rgba(244, 63, 94, 0.2); color: #f43f5e;">REJECTED</span>';
+                    html += `
+                        <div style="font-family: var(--font-mono); font-size: 0.85rem; padding: 6px 0; border-bottom: 1px solid var(--border-color);">
+                            <span>Pos ${d.position}: <strong>'${d.draft_token_str}'</strong> (q: ${d.draft_prob.toFixed(3)}, p: ${d.target_prob.toFixed(3)})</span>
+                            <div style="margin-top: 2px;">${statusTag} ${d.is_accepted ? '' : '→ Resampled: \'' + (d.resampled_token_str || '') + '\''}</div>
+                        </div>
+                    `;
+                });
+                specContainer.innerHTML = html;
+            } catch (e) {
+                alert('Speculative verification error: ' + e.message);
+            } finally {
+                btnSpec.disabled = false;
+                btnSpec.textContent = 'Verify Speculative Draft';
+            }
+        });
+    }
+
+    if (btnCirc && circContainer) {
+        btnCirc.addEventListener('click', async () => {
+            btnCirc.disabled = true;
+            btnCirc.textContent = 'Evaluating Circuits...';
+            try {
+                const res = await fetch('/api/circuits/induction', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ seq_len: 16 }),
+                });
+                const data = await res.json();
+
+                document.getElementById('circuit-out-heads').textContent = data.induction_heads + ' / ' + data.total_heads;
+
+                let html = `<div style="font-size: 0.85rem; margin-bottom: 8px; color: #38bdf8;">Evaluated ${data.total_heads} attention heads across model layers</div>`;
+                data.top_induction_heads.forEach(h => {
+                    html += `
+                        <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border-color); font-family: var(--font-mono); font-size: 0.85rem;">
+                            <span>Layer ${h.layer_idx}, Head ${h.head_idx}</span>
+                            <span style="color: ${h.is_induction ? '#10b981' : '#94a3b8'};">Score: ${h.induction_score.toFixed(4)} ${h.is_induction ? '★' : ''}</span>
+                        </div>
+                    `;
+                });
+                circContainer.innerHTML = html;
+            } catch (e) {
+                alert('Circuits eval error: ' + e.message);
+            } finally {
+                btnCirc.disabled = false;
+                btnCirc.textContent = 'Trace Induction Circuits';
+            }
+        });
+    }
 }
 
 // Start application

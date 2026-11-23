@@ -137,3 +137,28 @@ class SAEDecomposeResponse(BaseModel):
     active_features: List[Dict[str, Any]]
 
 
+class SpeculativeVerifyRequest(BaseModel):
+    prefix: str
+    draft_gamma: int = 4
+
+
+class SpeculativeVerifyResponse(BaseModel):
+    round_idx: int
+    proposed_tokens: int
+    accepted_tokens: int
+    speedup_ratio: float
+    decisions: List[Dict[str, Any]]
+
+
+class InductionCircuitRequest(BaseModel):
+    seq_len: int = 16
+
+
+class InductionCircuitResponse(BaseModel):
+    total_heads: int
+    induction_heads: int
+    top_induction_heads: List[Dict[str, Any]]
+    circuit_adjacency: List[Dict[str, Any]]
+
+
+

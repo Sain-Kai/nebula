@@ -99,6 +99,7 @@
                 <button class="nav-tab" data-tab="tab-steering">12. Concept Steering</button>
                 <button class="nav-tab" data-tab="tab-deliberation">13. Cognitive Deliberation</button>
                 <button class="nav-tab" data-tab="tab-sae">14. Sparse Autoencoders</button>
+                <button class="nav-tab" data-tab="tab-spec-circuit">15. Speculative & Circuits</button>
             </nav>
         </aside>
 
@@ -418,6 +419,58 @@
                                 <tr><td colspan="4" class="empty-hint">Click 'Decompose Latent Representations' to extract monosemantic dictionary features.</td></tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 15: SPECULATIVE DECODING & INDUCTION CIRCUITS -->
+            <section id="tab-spec-circuit" class="tab-pane">
+                <div class="section-header">
+                    <h2>Speculative Verification & Induction Circuit Flow</h2>
+                    <p>Observe multi-candidate rejection sampling dynamics and identify in-context copying circuits across attention heads.</p>
+                </div>
+                <div class="steering-studio">
+                    <div class="patch-form" style="margin-bottom: 1.5rem;">
+                        <div class="form-row">
+                            <label>Draft Lookahead Horizon (&gamma;) <span id="val-spec-gamma" class="param-val">4</span></label>
+                            <input type="range" id="spec-gamma" min="1" max="8" step="1" value="4">
+                        </div>
+                        <button id="btn-run-speculative" class="btn-primary">Verify Speculative Draft</button>
+                        <button id="btn-run-circuits" class="btn-secondary" style="margin-left: 10px;">Trace Induction Circuits</button>
+                    </div>
+
+                    <div class="metrics-grid" id="spec-metrics" style="margin-bottom: 1.5rem;">
+                        <div class="metric-card">
+                            <div class="metric-title">Draft Proposals</div>
+                            <div class="metric-val" id="spec-out-proposed">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Accepted Tokens</div>
+                            <div class="metric-val" id="spec-out-accepted">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Speedup Factor</div>
+                            <div class="metric-val" id="spec-out-speedup">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Active Induction Heads</div>
+                            <div class="metric-val" id="circuit-out-heads">--</div>
+                        </div>
+                    </div>
+
+                    <div class="diff-grid" style="margin-bottom: 1.5rem;">
+                        <div class="diff-col">
+                            <h4>SPECULATIVE REJECTION SAMPLING</h4>
+                            <div id="speculative-decisions-container">
+                                <div class="empty-hint">Click 'Verify Speculative Draft' to inspect candidate decisions.</div>
+                            </div>
+                        </div>
+                        <div class="diff-col">
+                            <h4>DETECTED INDUCTION CIRCUITS</h4>
+                            <div id="circuits-summary-container">
+                                <div class="empty-hint">Click 'Trace Induction Circuits' to evaluate attention head copying.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

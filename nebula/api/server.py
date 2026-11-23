@@ -29,6 +29,10 @@ from nebula.api.schemas import (
     DeliberationResponseSchema,
     SAEDecomposeRequest,
     SAEDecomposeResponse,
+    SpeculativeVerifyRequest,
+    SpeculativeVerifyResponse,
+    InductionCircuitRequest,
+    InductionCircuitResponse,
 )
 from nebula.api.websocket import handle_websocket_inference
 from nebula.steering.patching import ActivationPatcher, PatchIntervention
@@ -44,6 +48,8 @@ from nebula.sampling.filters import LogitFilter
 from nebula.cognitive.deliberation import CognitiveEvaluator
 from nebula.interpretability.sae import SparseAutoencoder
 from nebula.interpretability.feature_catalog import FeatureCatalog
+from nebula.core.speculative import SpeculativeVerifier
+from nebula.interpretability.induction_detector import InductionHeadDetector
 
 
 def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
@@ -435,6 +441,36 @@ def create_app(config: Optional[NebulaConfig] = None) -> FastAPI:
 
         result = sae.decompose(x_vec, top_n=req.top_features)
         return result.to_dict()
+
+    @app.post("/api/speculative/verify", response_model=SpeculativeVerifyResponse)
+    def speculative_verify_endpoint(req: SpeculativeVerifyRequest):
+        prefix_ids = tokenizer.encode(req.prefix)
+        curr_ids = list(prefix_ids)
+        past_kv = None
+        draft_ids = []
+        draft_probs = []
+
+        gamma = max(1, min(req.draft_gamma, 8))
+        for _ in range(gamma):
+            input_tensor = np.array([curr_ids], dtype=np.int64)
+            logits, past_kv, _ = model.forward(input_tensor, past_kv=past_kv)
+            step_logits = logits[0, -1, :]
+            exp_l = np.exp(step_logits - np.max(step_logits))
+            probs = exp_l / np.sum(exp_l)
+            next_id = int(np.argmax(probs))
+            draft_ids.append(next_id)
+            draft_probs.append(float(probs[next_id]))
+            curr_ids = [next_id]
+
+        verifier = SpeculativeVerifier(model, tokenizer, draft_gamma=gamma)
+        trace = verifier.verify_speculative_candidates(prefix_ids, draft_ids, draft_probs)
+        return trace.to_dict()
+
+    @app.post("/api/circuits/induction", response_model=InductionCircuitResponse)
+    def induction_circuits_endpoint(req: InductionCircuitRequest):
+        detector = InductionHeadDetector(model)
+        summary = detector.evaluate_induction_heads(seq_len=req.seq_len)
+        return summary.to_dict()
 
     @app.websocket("/ws/stream")
     async def websocket_stream(websocket: WebSocket):
